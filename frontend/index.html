@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAnalytics</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  margin: 0;
+  background: #f4f6f9;
+}
+
+header {
+  background: #2c3e50;
+  color: white;
+  padding: 15px;
+  text-align: center;
+}
+
+.container {
+  padding: 20px;
+}
+
+input {
+  margin: 10px 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 20px;
+}
+
+table, th, td {
+  border: 1px solid #ddd;
+}
+
+th, td {
+  padding: 10px;
+  text-align: center;
+}
+
+button {
+  background: #3498db;
+  color: white;
+  padding: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2980b9;
+}
+
+canvas {
+  margin-top: 30px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>📊 EduAnalytics Dashboard</h1>
+  <p>Upload CSV & Analyze Your Data</p>
+</header>
+
+<div class="container">
+
+  <input type="file" id="fileInput" accept=".csv">
+  <br>
+  <button onclick="clearData()">Clear Data</button>
+
+  <table id="dataTable"></table>
+
+  <canvas id="chart"></canvas>
+
+</div>
+
+<script>
+document.getElementById('fileInput').addEventListener('change', handleFile);
+
+// Send data to backend
+async function sendToServer(data) {
+  await fetch("http://localhost:5000/upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+}
+
+// Get data from backend
+async function fetchData() {
+  const res = await fetch("http://localhost:5000/upload");
+  return await res.json();
+}
+
+// Handle CSV upload
+function handleFile(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async function(e) {
+    const text = e.target.result;
+    const rows = text.split("\n").map(r => r.split(","));
+
+    let formatted = rows.slice(1).map(r => ({
+      name: r[0],
+      value: Number(r[1])
+    }));
+
+    await sendToServer(formatted);
+
+    const data = await fetchData();
+
+    displayTable(rows);
+    generateChart(data);
+  };
+
+  reader.readAsText(file);
+}
+
+// Display table
+function displayTable(data) {
+  let table = document.getElementById('dataTable');
+  table.innerHTML = "";
+
+  data.forEach((row, index) => {
+    let tr = document.createElement('tr');
+
+    row.forEach(cell => {
+      let td = document.createElement(index === 0 ? 'th' : 'td');
+      td.innerText = cell;
+      tr.appendChild(td);
+    });
+
+    table.appendChild(tr);
+  });
+}
+
+// Generate chart
+let chart;
+
+function generateChart(data) {
+  let labels = data.map(d => d.name);
+  let values = data.map(d => d.value);
+
+  if (chart) {
+    chart.destroy();
+  }
+
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Data Analysis",
+        data: values
+      }]
+    }
+  });
+}
+
+// Clear data (refresh page)
+function clearData() {
+  location.reload();
+}
+</script>
+
+</body>
+</html>
